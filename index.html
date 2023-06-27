@@ -1,4 +1,5 @@
-<html html5>
+<!DOCTYPE html>
+<html>
   <head></head>
   <body>
     <main id="root">
@@ -102,8 +103,6 @@
         const dnNum = Number(dn);
         const pnNum = Number(pn);
         const dnPn = dnNum * pnNum;
-
-        console.dir({ ...fields, dnPn });
 
         if (group === "group_1" && enviroment == "gas") {
           if (dnNum <= 25 || pnNum <= 0.05) {
