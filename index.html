@@ -26,6 +26,7 @@
               step="1"
               id="dn"
               name="dn"
+              min="1"
               autocomplete="off"
               required
               placeholder="Введите ДУ"
@@ -38,6 +39,7 @@
               step="0.01"
               id="pn"
               name="pn"
+              min="0"
               autocomplete="off"
               required
               placeholder="Введите РУ"
@@ -82,7 +84,7 @@
 
       document.querySelectorAll("input").forEach((it) => {
         it.addEventListener("input", () => {
-          renderResult(null);
+          renderResult(null, 0);
         });
       });
 
@@ -104,44 +106,119 @@
         const pnNum = Number(pn);
         const dnPn = dnNum * pnNum;
 
+        const category = calculateCategory(group, enviroment, dnNum, pnNum, dnPn);
+        let isOk = false;
+
+        renderOutput(false);
+
         if (group === "group_1" && enviroment == "gas") {
           if (dnNum <= 25 || pnNum <= 0.05) {
-            return renderResult(false);
+            isOk = false;
           } else {
-            return renderResult(true);
+            isOk = true;
           }
-        }
-
-        if (group === "group_1" && enviroment == "liquid") {
+        } else if (group === "group_1" && enviroment == "liquid") {
           if (dnNum <= 25 || dnPn <= 200 || pnNum <= 0.05) {
-            return renderResult(false);
+            isOk = false;
           } else {
-            return renderResult(true);
+            isOk = true;
           }
-        }
-
-        if (group === "group_2" && enviroment == "liquid") {
+        } else if (group === "group_2" && enviroment == "liquid") {
           if (dnNum <= 200 || dnPn <= 500 || pnNum <= 1) {
-            return renderResult(false);
+            isOk = false;
           } else {
-            return renderResult(true);
+            isOk = true;
+          }
+        } else if (group === "group_2" && enviroment == "gas") {
+          if (dnNum <= 32 || dnPn <= 100 || pnNum <= 0.05) {
+            isOk = false;
+          } else {
+            isOk = true;
           }
         }
 
-        if (group === "group_2" && enviroment == "gas") {
-          if (dnNum <= 32 || dnPn <= 100 || pnNum <= 0.05) {
-            return renderResult(false);
-          } else {
-            return renderResult(true);
-          }
-        }
+        renderResult(isOk, category);
       }
 
-      function renderResult(isNeeded) {
+      function calculateCategory(group, env, dn, pn, dnPn) {
+        let category = 0;
+
+        switch (group) {
+          case "group_1": {
+            switch (env) {
+              case "gas": {
+                if (dn > 25 && dn <= 100 && dnPn <= 100 && pn > 0.05) {
+                  category = 1;
+                } else if (dn > 25 && dn <= 100 && dnPn > 100 && pn > 1) {
+                  category = 2;
+                } else if (dn > 100 && dn <= 350 && dnPn <= 350 && pn > 0.05) {
+                  category = 2;
+                } else if (dn > 100 && dn <= 350 && dnPn > 350 && pn > 1) {
+                  category = 3;
+                } else if (dn > 350 && pn > 0.05) {
+                  category = 3;
+                }
+                break;
+              }
+              case "liquid": {
+                if (dn > 25 && dnPn > 200 && pn > 0.05 && pn <= 1) {
+                  category = 1;
+                } else if (dn > 25 && dnPn > 200 && pn > 1 && pn <= 50) {
+                  category = 2;
+                } else if (dn > 25 && pn > 50) {
+                  category = 3;
+                }
+                break;
+              }
+            }
+
+            break;
+          }
+          case "group_2": {
+            switch (env) {
+              case "gas": {
+                if (dn > 32 && dn <= 100 && dnPn > 100 && pn > 0.05) {
+                  category = 1;
+                } else if (dn > 100 &&  dnPn > 100 && dnPn <= 350 && pn > 0.05) {
+                  category = 1;
+                } else if (dn > 100 && dn <= 250 &&  dnPn > 350 && pn > 0.05) {
+                  category = 2;
+                } else if (dn > 250 && dnPn > 350 && dnPn <= 500 && pn > 0.05) {
+                  category = 2;
+                } else if (dn > 250 && dnPn > 500 && pn > 0.05) {
+                  category = 3;
+                }
+                break;
+              }
+              case "liquid": {
+                if (dn > 200 && dnPn > 500 && pn > 1 && pn <= 50) {
+                  category = 1;
+                } else if (dn > 200 && pn > 50) {
+                  category = 2;
+                }
+                break;
+              }
+            }
+            break;
+          }
+        }
+
+        return category;
+      }
+
+      function renderResult(isNeeded, category) {
         let resLabel = "";
 
         if (isNeeded != null) {
-          resLabel = `ТР ТС 032/2013 - ${isNeeded ? "распространяется" : "НЕ распространяется"}`;
+          resLabel = `<p style="margin-bottom: 1em;">ТР ТС 032/2013 - ${
+            isNeeded ? "распространяется" : "НЕ распространяется"
+          }</p>`;
+        }
+
+        if (isNeeded && !!category) {
+          let docType = category === 3 ? 'Сертификат' : 'Декларация';
+
+          resLabel += `<p>Категория <b>${category}-я</b> (${docType})</p>`;
         }
 
         resultEl.innerHTML = `<h1>${resLabel}</h1>`;
@@ -150,19 +227,23 @@
       function handleSelectChange(e) {
         const target = e.target;
 
-        renderOutput();
-        renderResult(null);
+        renderOutput(true);
+        renderResult(null, 0);
       }
 
       function handleInputChange(e) {
-        renderResult(null);
+        renderResult(null, 0);
       }
 
-      function renderOutput() {
+      function renderOutput(showBase) {
         const selectedEnviroment = enviromentSelect.value;
         const selectedGroup = groupSelect.value;
 
-        let output = getSelectionHint(selectedEnviroment, selectedGroup);
+        let output = getSelectionHint(
+          selectedEnviroment,
+          selectedGroup,
+          showBase
+        );
 
         detailsEl.innerHTML = output;
       }
@@ -179,26 +260,55 @@
             return `<option value="${value}">${label}</option>`;
           })
           .join("")}`;
+
+        renderOutput(true);
       }
 
-      function getSelectionHint(env, group) {
-        if (group === "group_1" && env === "gas") {
-          return "трубопроводы и арматура, имеющие расчетное давление свыше 0,05 МПа, номинальный диаметр более 25 мм, предназначенные для сжатых, сжиженных, растворенных под давлением газов и паров и используемые для рабочих сред группы 1.";
+      function getSelectionHint(env, group, showBase) {
+        let hint = showBase
+          ? '<p style="font-weight: 600; font-size: 0.8em; margin-bottom: 1em;">"группа рабочих сред" - совокупность рабочих сред, подразделенных на: группу 1, включающую рабочие среды, состоящие из воспламеняющихся, окисляющих (кроме воздуха с содержанием кислорода, соответствующим естественному составу атмосферного воздуха), горючих, взрывчатых, токсичных и высокотоксичных газов, жидкостей и паров в однофазном состоянии, а также их смесей; группу 2, включающую все прочие рабочие среды, которые не отнесены к группе 1;</p>'
+          : "";
+
+        let selectionHint = "";
+
+        switch (group) {
+          case "group_1": {
+            switch (env) {
+              case "gas": {
+                selectionHint +=
+                  "трубопроводы и арматура, имеющие расчетное давление свыше 0,05 МПа, номинальный диаметр более 25 мм, предназначенные для сжатых, сжиженных, растворенных под давлением газов и паров и используемые для рабочих сред группы 1.\n";
+                break;
+              }
+              case "liquid": {
+                selectionHint +=
+                  "трубопроводы и арматура, имеющие расчетное давление свыше 0,05 МПа, номинальный диаметр более 25 мм и произведение значения расчетного давления и значения номинального диаметра, составляющее свыше 200 МПа·мм, предназначенные для жидкостей и используемые для рабочих сред группы 1.\n";
+                break;
+              }
+            }
+            break;
+          }
+          case "group_2": {
+            switch (env) {
+              case "gas": {
+                selectionHint +=
+                  "трубопроводы и арматура, имеющие расчетное давление свыше 0,05 МПа, номинальный диаметр более 32 мм и произведение значения расчетного давления и значения номинального диаметра, составляющее свыше 100 МПа·мм, предназначенные для сжатых, сжиженных, растворенных под давлением газов и паров и используемые для рабочих сред группы 2.\n";
+                break;
+              }
+              case "liquid": {
+                selectionHint +=
+                  "трубопроводы и арматура, имеющие расчетное давление свыше 1 МПа, номинальный диаметр более 200 мм и произведение значения расчетного давления и значения номинального диаметра свыше 500 МПа·мм, предназначенные для жидкостей и используемые для рабочих сред группы 2.\n";
+                break;
+              }
+            }
+            break;
+          }
         }
 
-        if (group === "group_2" && env === "gas") {
-          return "трубопроводы и арматура, имеющие расчетное давление свыше 0,05 МПа, номинальный диаметр более 32 мм и произведение значения расчетного давления и значения номинального диаметра, составляющее свыше 100 МПа·мм, предназначенные для сжатых, сжиженных, растворенных под давлением газов и паров и используемые для рабочих сред группы 2.";
+        if (!!selectionHint) {
+          hint += '<p style="margin-bottom: 1em;">' + selectionHint + "</p>";
         }
 
-        if (group === "group_1" && env === "liquid") {
-          return "трубопроводы и арматура, имеющие расчетное давление свыше 0,05 МПа, номинальный диаметр более 25 мм и произведение значения расчетного давления и значения номинального диаметра, составляющее свыше 200 МПа·мм, предназначенные для жидкостей и используемые для рабочих сред группы 1.";
-        }
-
-        if (group === "group_2" && env === "liquid") {
-          return "трубопроводы и арматура, имеющие расчетное давление свыше 1 МПа, номинальный диаметр более 200 мм и произведение значения расчетного давления и значения номинального диаметра свыше 500 МПа·мм, предназначенные для жидкостей и используемые для рабочих сред группы 2.";
-        }
-
-        return "";
+        return hint;
       }
     </script>
 
@@ -232,7 +342,7 @@
 
       #details,
       form button {
-        font-size: 1.4rem;
+        font-size: 1.2rem;
       }
 
       form {
